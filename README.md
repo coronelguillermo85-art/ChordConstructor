@@ -8,7 +8,7 @@
 Aplicación web interactiva todo-en-uno para aprender **piano**, **armonía** y **teoría musical**. Combina un piano virtual de 88 teclas con detección de acordes en tiempo real, constructor de acordes, sistema de objetivos con feedback visual, efectos musicales sincronizados y un completo catálogo de ejercicios.
 
 (<img width="1201" height="579" alt="image" src="https://github.com/user-attachments/assets/876fc370-941c-4e6e-9cb8-b5c08b469981" />
-)
+
 
 https://chord-constructor.vercel.app/
 ---
