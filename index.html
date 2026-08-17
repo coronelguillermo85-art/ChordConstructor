@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SENSITIVE PIANO CHORD CONSTRUCTOR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/midi-file@1.2.0/midi-file.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.js"></script>
+  <style>
+    :root {
+      --bg-0: #07080b; --bg-1: #12141b; --bg-2: #191c25;
+      --line: #262a35; --cyan: #4fd8ff; --cyan-dim: #2a8fb8;
+      --text-0: #eef1f7; --text-1: #8890a0; --text-2: #4d5364;
+      --gold: #f7d44a; --ok: #55e6a5; --error: #ff5a5a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(ellipse 1000px 500px at 50% -10%, rgba(79,216,255,0.08), transparent 60%), var(--bg-0);
+      color: var(--text-0); font-family: 'Inter', sans-serif;
+      padding: 1.2rem; display: flex; justify-content: center; min-height: 100vh;
+    }
+    #app { max-width: 1200px; width: 100%; }
+
+    .brand { text-align: center; margin-bottom: 20px; }
+    .brand .s1 { font-family: 'Space Mono', monospace; font-weight: 700; color: var(--cyan);
+      font-size: 20px; letter-spacing: 6px; text-shadow: 0 0 24px rgba(79,216,255,0.5); }
+    .brand .s2 { font-family: 'Space Mono', monospace; color: var(--text-2); font-size: 10px; letter-spacing: 6px; margin-top: 4px; }
+
+    .chord-emulator { background: var(--bg-1); border: 1px solid var(--line); border-radius: 16px;
+      padding: 0.8rem 1.2rem; margin-bottom: 1rem; }
+    .chord-emulator .row { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-start; }
+    .chord-emulator .col { flex: 1; min-width: 180px; }
+    .chord-emulator .label { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--text-1); letter-spacing: 1px; }
+    .chord-emulator .chord-name { font-size: 2rem; font-weight: 700; color: var(--cyan); line-height: 1.2; }
+    .chord-emulator .chord-quality { font-size: 0.8rem; color: var(--text-2); }
+    .chord-emulator .chord-notes { font-size: 0.75rem; color: var(--text-1); margin-top: 4px; }
+    .chord-emulator .intervals { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; font-size: 0.75rem; }
+    .chord-emulator .legend { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+    .chord-emulator .legend span { font-size: 0.65rem; color: var(--text-2); }
+
+    .constructor { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+    .constructor .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .constructor select, .constructor button { background: var(--bg-2); border: 1px solid var(--line); border-radius: 8px; padding: 0.3rem 0.8rem; color: var(--text-0); font-size: 0.8rem; font-family: 'Space Mono', monospace; }
+    .constructor button { cursor: pointer; border-radius: 20px; padding: 0.3rem 1rem; font-weight: 700; }
+    .constructor .btn-primary { background: var(--cyan); color: #06070a; border: none; }
+    .constructor .btn-secondary { background: transparent; border: 1px solid var(--cyan-dim); color: var(--cyan); }
+    .constructor .btn-gold { background: var(--gold); color: #06070a; border: none; transition: all 0.3s; }
+    .constructor .btn-gold.active { background: #ff6b35; color: #fff; box-shadow: 0 0 20px rgba(255,107,53,0.5); transform: scale(1.05); }
+    .constructor .btn-danger { background: transparent; border: 1px solid var(--error); color: var(--error); }
+    .constructor .btn-try { background: var(--ok); color: #06070a; border: none; transition: all 0.2s; }
+    .constructor .btn-try:hover { background: #44cc88; }
+    .constructor .btn-try.active { background: var(--gold); box-shadow: 0 0 20px rgba(247,212,74,0.5); }
+    .constructor .btn-effect { background: transparent; border: 1px solid var(--gold); color: var(--gold); }
+    .constructor .btn-effect.active { background: var(--gold); color: #06070a; }
+    .constructor .chord-structure { margin-top: 0.6rem; display: flex; gap: 8px; flex-wrap: wrap; font-size: 0.8rem; align-items: center; }
+
+    .controls-bar { background: var(--bg-1); border: 1px solid var(--line); border-radius: 14px;
+      padding: 0.8rem 1.1rem; margin-bottom: 1rem; display: flex; flex-wrap: wrap;
+      align-items: center; gap: 0.6rem 1.2rem; }
+    .controls-bar button {
+      font-family: 'Space Mono', monospace; background: transparent; border: 1px solid var(--cyan-dim);
+      padding: 0.35rem 1rem; border-radius: 30px; color: var(--cyan); font-size: 0.75rem;
+      letter-spacing: 1px; cursor: pointer; transition: 0.15s;
+    }
+    .controls-bar button:hover { background: rgba(79,216,255,0.1); border-color: var(--cyan); }
+    .controls-bar button.primary { background: var(--cyan); color: #06070a; font-weight: 700; border-color: var(--cyan); }
+    .controls-bar button.primary:hover { background: #6ee2ff; }
+    .controls-bar select {
+      background: var(--bg-2); border: 1px solid var(--line); border-radius: 10px;
+      padding: 0.35rem 0.8rem; color: var(--text-0); font-size: 0.78rem;
+    }
+    .controls-bar label { font-size: 0.75rem; display: flex; align-items: center; gap: 0.35rem; color: var(--text-1); }
+    .controls-bar input[type="range"] { width: 80px; accent-color: var(--cyan); }
+    #info { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--text-2);
+      margin-left: auto; white-space: nowrap; letter-spacing: .5px; }
+    #midiStatus { font-family: 'Space Mono', monospace; font-size: 0.7rem; letter-spacing: 1px; }
+    #midiStatus.on { color: var(--ok); }
+    #midiStatus.off { color: var(--text-2); }
+
+    .piano-wrap { background: var(--bg-1); border: 1px solid var(--line); border-radius: 16px;
+      padding: 0.5rem 0.6rem 0.6rem; overflow-x: auto; overflow-y: hidden; }
+    .piano { display: flex; height: 110px; position: relative; background: var(--bg-2);
+      border-radius: 8px; padding: 0 2px; min-width: fit-content; }
+    .key { flex: 0 0 auto; border: 1px solid #232833; border-radius: 0 0 4px 4px;
+      cursor: pointer; transition: background 0.05s, box-shadow 0.05s; position: relative; user-select: none; }
+    .key-white { background: #dfe4ee; width: 22px; height: 100%; border-bottom: 3px solid #9aa4b4; z-index: 1; }
+    .key-black { background: #14161d; width: 13px; height: 62%; margin-left: -6.5px; margin-right: -6.5px;
+      z-index: 2; border: 1px solid #0b0d10; border-radius: 0 0 4px 4px; border-top: 2px solid #2b3140;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6); }
+    .key-white.active { background: var(--cyan); box-shadow: 0 0 18px rgba(79,216,255,0.6); border-color: var(--cyan); z-index: 3; }
+    .key-black.active { background: var(--cyan); box-shadow: 0 0 18px rgba(79,216,255,0.6); border-color: var(--cyan); z-index: 4; }
+    .key-white.target { background: #1a3a5a; border-color: #4fd8ff; box-shadow: 0 0 12px rgba(79,216,255,0.4); }
+    .key-black.target { background: #0f2a3a; border-color: #4fd8ff; box-shadow: 0 0 12px rgba(79,216,255,0.4); }
+    .key-white.correct { background: var(--ok); border-color: var(--ok); box-shadow: 0 0 18px rgba(85,230,165,0.6); }
+    .key-black.correct { background: var(--ok); border-color: var(--ok); box-shadow: 0 0 18px rgba(85,230,165,0.6); }
+    .key-white.wrong { background: var(--error); border-color: var(--error); box-shadow: 0 0 18px rgba(255,90,90,0.6); }
+    .key-black.wrong { background: var(--error); border-color: var(--error); box-shadow: 0 0 18px rgba(255,90,90,0.6); }
+    .key-white.effect-light { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 25px rgba(247,212,74,0.8); }
+    .key-black.effect-light { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 25px rgba(247,212,74,0.8); }
+    .key-white.apoyatura-light { background: #ff6b6b; border-color: #ff6b6b; box-shadow: 0 0 25px rgba(255,107,107,0.8); }
+    .key-black.apoyatura-light { background: #ff6b6b; border-color: #ff6b6b; box-shadow: 0 0 25px rgba(255,107,107,0.8); }
+    .key-label { position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
+      font-size: 0.4rem; color: #7a8494; pointer-events: none; white-space: nowrap; }
+    @media (max-width: 700px) {
+      .key-white { width: 16px; } .key-black { width: 10px; margin-left: -5px; margin-right: -5px; }
+      .piano { height: 80px; }
+    }
+
+    .feedback { font-family: 'Space Mono', monospace; font-size: 1.2rem; margin-top: 8px; text-align: center; padding: 8px; border-radius: 8px; }
+    .feedback.correct { color: var(--ok); background: rgba(85,230,165,0.15); border: 1px solid var(--ok); }
+    .feedback.incorrect { color: var(--error); background: rgba(255,90,90,0.15); border: 1px solid var(--error); }
+    .feedback.waiting { color: var(--gold); background: rgba(247,212,74,0.15); border: 1px solid var(--gold); }
+    .feedback.info { color: var(--text-1); background: rgba(136,144,160,0.1); border: 1px solid var(--line); }
+    .feedback.try { color: var(--cyan); background: rgba(79,216,255,0.15); border: 1px solid var(--cyan); }
+    .feedback.warning { color: var(--error); background: rgba(255,90,90,0.1); border: 1px solid var(--error); }
+
+    .effects-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; align-items: center; }
+    .effects-row .label { font-size: 0.65rem; color: var(--text-2); margin-right: 4px; }
+    .effects-row button { font-size: 0.65rem; padding: 0.15rem 0.6rem; border-radius: 12px; }
+    .effects-row select { background: var(--bg-2); border: 1px solid var(--line); border-radius: 8px; padding: 0.15rem 0.4rem; color: var(--text-0); font-size: 0.65rem; font-family: 'Space Mono', monospace; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="brand">
+    <div class="s1">SENSITIVE</div>
+    <div class="s2">P I A N O &nbsp; C H O R D &nbsp; C O N S T R U C T O R</div>
+  </div>
+
+  <!-- CHORD EMULATOR + CONSTRUCTOR -->
+  <div class="chord-emulator">
+    <div class="row">
+      <div class="col">
+        <div class="label">ACORDE DETECTADO</div>
+        <div id="chordName" class="chord-name">—</div>
+        <div id="chordQuality" class="chord-quality">—</div>
+        <div id="chordNotesList" class="chord-notes"></div>
+      </div>
+      <div class="col" style="flex:2;">
+        <div class="label">INTERVALOS</div>
+        <div id="chordIntervalsDisplay" class="intervals"></div>
+        <div class="legend">
+          <span style="color:var(--cyan);">●</span><span>Fundamental</span>
+          <span style="color:#f7d44a;">●</span><span>3ª / 7ª</span>
+          <span style="color:#55e6a5;">●</span><span>5ª / 9ª / 11ª / 13ª</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="constructor">
+      <div class="controls">
+        <span class="label">CONSTRUCTOR</span>
+        <select id="chordRootSelect">
+          <option value="0">C</option><option value="1">C#</option><option value="2">D</option><option value="3">D#</option>
+          <option value="4">E</option><option value="5">F</option><option value="6">F#</option><option value="7">G</option>
+          <option value="8">G#</option><option value="9">A</option><option value="10">A#</option><option value="11">B</option>
+        </select>
+        <select id="chordTypeSelect">
+          <option value="major">Mayor</option>
+          <option value="minor">Menor</option>
+          <option value="dim">Disminuido</option>
+          <option value="aug">Aumentado</option>
+          <option value="maj7">Séptima mayor</option>
+          <option value="7">Séptima dominante</option>
+          <option value="m7">Séptima menor</option>
+          <option value="m7b5">Semidisminuido</option>
+          <option value="dim7">Disminuido séptima</option>
+          <option value="maj9">Novena mayor</option>
+          <option value="9">Novena dominante</option>
+          <option value="m9">Novena menor</option>
+          <option value="maj11">Onceava mayor</option>
+          <option value="11">Onceava dominante</option>
+          <option value="m11">Onceava menor</option>
+          <option value="maj13">Treceava mayor</option>
+          <option value="13">Treceava dominante</option>
+          <option value="m13">Treceava menor</option>
+        </select>
+        <button id="showChordBtn" class="btn-primary">Mostrar</button>
+        <button id="setTargetBtn" class="btn-gold">🎯 Establecer objetivo</button>
+        <button id="clearTargetBtn" class="btn-danger">✖ Limpiar</button>
+        <button id="tryBtn" class="btn-try">🎵 TRY</button>
+      </div>
+      <div id="chordConstruction" class="chord-structure"></div>
+
+      <!-- EFECTOS Y DINÁMICAS -->
+      <div class="effects-row">
+        <span class="label">DINÁMICAS:</span>
+        <button class="btn-effect" data-dynamic="pp">pp</button>
+        <button class="btn-effect" data-dynamic="p">p</button>
+        <button class="btn-effect active" data-dynamic="mf">mf</button>
+        <button class="btn-effect" data-dynamic="f">f</button>
+        <button class="btn-effect" data-dynamic="ff">ff</button>
+        <span style="color:var(--text-2);margin-left:8px;">|</span>
+        <span class="label">EFECTOS:</span>
+        <button class="btn-effect active" data-effect="none" style="border-color:var(--ok);color:var(--ok);">♩ Normal</button>
+        <button class="btn-effect" data-effect="tremolo">𝅀 Trémolo</button>
+        <button class="btn-effect" data-effect="trino">𝅁 Trino</button>
+        <button class="btn-effect" data-effect="staccato">𝅂 Staccato</button>
+        <button class="btn-effect" data-effect="glissando">═══ Glissando</button>
+        <button class="btn-effect" data-effect="arpeggio">𝅆 Arpeggio</button>
+        <button class="btn-effect" data-effect="apoyatura">♯ Apoyatura</button>
+        <span style="color:var(--text-2);margin-left:4px;">|</span>
+        <select id="apoyaturaDirection">
+          <option value="asc">♯ Ascendente</option>
+          <option value="desc">♭ Descendente</option>
+        </select>
+        <span style="color:var(--text-2);margin-left:4px;">|</span>
+        <span class="label">INTERVALO TRINO:</span>
+        <select id="trinoInterval">
+          <option value="2">2ª</option>
+          <option value="3" selected>3ª</option>
+          <option value="4">4ª</option>
+          <option value="5">5ª</option>
+          <option value="6">6ª</option>
+          <option value="7">7ª</option>
+          <option value="8">8ª</option>
+        </select>
+      </div>
+
+      <div id="feedback" class="feedback info">Carga una escala o acorde y usa TRY para ver cómo suena</div>
+    </div>
+  </div>
+
+  <!-- CONTROLES -->
+  <div class="controls-bar">
+    <div>
+      <button id="playBtn" class="primary">▶ Play</button>
+      <button id="pauseBtn">⏸ Pausa</button>
+      <button id="stopBtn">⏹ Stop</button>
+    </div>
+    <div style="display:flex; gap:0.5rem; align-items:center;">
+      <select id="categorySelect"></select>
+      <select id="itemSelect"></select>
+      <button id="loadExerciseBtn">Cargar</button>
+      <select id="handSelect" style="background:var(--bg-2); border:1px solid var(--line); border-radius:10px; padding:0.35rem 0.8rem; color:var(--text-0); font-size:0.78rem;">
+        <option value="both">Ambas manos</option>
+        <option value="right">Mano derecha</option>
+        <option value="left">Mano izquierda</option>
+      </select>
+    </div>
+    <div>
+      <label><input type="range" id="tempoSlider" min="40" max="200" value="120" /><span id="tempoDisplay">120</span> BPM</label>
+      <label><input type="checkbox" id="loopCheck" /> Loop</label>
+    </div>
+    <div>
+      <button id="midiConnectBtn">🎹 Conectar MIDI</button>
+      <span id="midiStatus" class="off">DESCONECTADO</span>
+    </div>
+    <div>
+      <button id="recordBtn">🎙 Grabar</button>
+      <button id="clearRecordBtn">🗑 Limpiar</button>
+    </div>
+    <span id="info">Elegí un ejercicio y cargálo</span>
+  </div>
+
+  <!-- PIANO -->
+  <div class="piano-wrap">
+    <div class="piano" id="pianoKeyboard"></div>
+  </div>
+</div>
+
+<script>
+  // ============================================================
+  //  DOM REFS
+  // ============================================================
+  const pianoEl = document.getElementById('pianoKeyboard');
+  const playBtn = document.getElementById('playBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const tempoSlider = document.getElementById('tempoSlider');
+  const tempoDisplay = document.getElementById('tempoDisplay');
+  const loopCheck = document.getElementById('loopCheck');
+  const categorySelect = document.getElementById('categorySelect');
+  const itemSelect = document.getElementById('itemSelect');
+  const loadExerciseBtn = document.getElementById('loadExerciseBtn');
+  const info = document.getElementById('info');
+  const midiConnectBtn = document.getElementById('midiConnectBtn');
+  const midiStatus = document.getElementById('midiStatus');
+  const recordBtn = document.getElementById('recordBtn');
+  const clearRecordBtn = document.getElementById('clearRecordBtn');
+  const tryBtn = document.getElementById('tryBtn');
+  const apoyaturaDirection = document.getElementById('apoyaturaDirection');
+  const trinoInterval = document.getElementById('trinoInterval');
+  const setTargetBtn = document.getElementById('setTargetBtn');
+  const handSelect = document.getElementById('handSelect');
+
+  // ============================================================
+  //  ESTADO
+  // ============================================================
+  let rightNotes = [], leftNotes = [], totalDuration = 1;
+  let isPlaying = false, isPaused = false, scheduled = false;
+  let activeTimeouts = [];
+  let liveNotes = [];
+  let recording = false, recordStartMs = 0;
+  let activePressStarts = new Map();
+  let targetChord = null;
+  let targetNotesAll = [];
+  let targetRightNotes = [];
+  let targetLeftNotes = [];
+  let lastFeedbackTime = 0;
+  let currentDynamic = 'mf';
+  let currentEffect = 'none';
+  let isTryActive = false;
+  let tryTimeout = null;
+  let effectLightTimeout = null;
+  let targetActive = false;
+  let isScaleMode = false;
+  let scaleProgress = new Set();
+
+  // ============================================================
+  //  SINTETIZADOR
+  // ============================================================
+  let synth = null;
+  function createFallbackSynth() {
+    return new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: 'fatsawtooth', count: 3, spread: 25 },
+      envelope: { attack: 0.005, decay: 1.1, sustain: 0.08, release: 0.9 },
+      volume: 2,
+    }).toDestination();
+  }
+  synth = createFallbackSynth();
+  const sampler = new Tone.Sampler({
+    urls: { A0:"A0.mp3",C1:"C1.mp3",D1:"D1.mp3",E1:"E1.mp3",F1:"F1.mp3",G1:"G1.mp3",A1:"A1.mp3",B1:"B1.mp3",
+      C2:"C2.mp3",D2:"D2.mp3",E2:"E2.mp3",F2:"F2.mp3",G2:"G2.mp3",A2:"A2.mp3",B2:"B2.mp3",
+      C3:"C3.mp3",D3:"D3.mp3",E3:"E3.mp3",F3:"F3.mp3",G3:"G3.mp3",A3:"A3.mp3",B3:"B3.mp3",
+      C4:"C4.mp3",D4:"D4.mp3",E4:"E4.mp3",F4:"F4.mp3",G4:"G4.mp3",A4:"A4.mp3",B4:"B4.mp3",
+      C5:"C5.mp3",D5:"D5.mp3",E5:"E5.mp3",F5:"F5.mp3",G5:"G5.mp3",A5:"A5.mp3",B5:"B5.mp3",
+      C6:"C6.mp3",D6:"D6.mp3",E6:"E6.mp3",F6:"F6.mp3",G6:"G6.mp3",A6:"A6.mp3",B6:"B6.mp3",
+      C7:"C7.mp3",D7:"D7.mp3",E7:"E7.mp3",F7:"F7.mp3",G7:"G7.mp3",A7:"A7.mp3",B7:"B7.mp3",C8:"C8.mp3" },
+    release: 1, baseUrl: "https://tonejs.github.io/audio/salamander/",
+    onload: () => { synth.dispose(); synth = sampler; updateInfo('Piano real cargado ✓'); },
+    onerror: () => { updateInfo('Usando synth de respaldo'); }
+  }).toDestination();
+
+  function midiToNoteName(midi) { return Tone.Frequency(midi, 'midi').toNote(); }
+  function updateInfo(msg) { info.textContent = msg; }
+
+  // ============================================================
+  //  FUNCIONES DE APAGADO DE SONIDO
+  // ============================================================
+  function killAllSounds() {
+    if (synth) {
+      try {
+        synth.releaseAll(Tone.now());
+      } catch(e) {}
+    }
+    try {
+      Tone.Transport.stop();
+      Tone.Transport.cancel();
+    } catch(e) {}
+    activeTimeouts.forEach(tid => clearTimeout(tid));
+    activeTimeouts = [];
+    document.querySelectorAll('.key.active').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.key.effect-light').forEach(el => el.classList.remove('effect-light'));
+    document.querySelectorAll('.key.apoyatura-light').forEach(el => el.classList.remove('apoyatura-light'));
+    activeNotesSet.clear();
+    updateChordDisplay();
+    clearTimeout(effectLightTimeout);
+  }
+
+  // ============================================================
+  //  DINÁMICAS Y EFECTOS
+  // ============================================================
+  const DYNAMIC_VELOCITY = {
+    'pp': 0.2,
+    'p': 0.4,
+    'mf': 0.6,
+    'f': 0.8,
+    'ff': 0.95
+  };
+
+  function getVelocity() {
+    return DYNAMIC_VELOCITY[currentDynamic] || 0.6;
+  }
+
+  // ============================================================
+  //  LUCES PARA EFECTOS
+  // ============================================================
+  function clearEffectLights() {
+    document.querySelectorAll('.key.effect-light').forEach(el => el.classList.remove('effect-light'));
+    document.querySelectorAll('.key.apoyatura-light').forEach(el => el.classList.remove('apoyatura-light'));
+    clearTimeout(effectLightTimeout);
+  }
+
+  function lightKeys(notes, delay = 0, className = 'effect-light') {
+    setTimeout(() => {
+      clearEffectLights();
+      notes.forEach(midi => {
+        const keyEl = document.querySelector(`.key[data-midi="${midi}"]`);
+        if (keyEl) keyEl.classList.add(className);
+      });
+      effectLightTimeout = setTimeout(() => {
+        document.querySelectorAll(`.key.${className}`).forEach(el => el.classList.remove(className));
+      }, 300);
+    }, delay);
+  }
+
+  function lightKeysSequential(notes, interval = 100, className = 'effect-light') {
+    clearEffectLights();
+    notes.forEach((midi, i) => {
+      setTimeout(() => {
+        const keyEl = document.querySelector(`.key[data-midi="${midi}"]`);
+        if (keyEl) keyEl.classList.add(className);
+        setTimeout(() => {
+          if (keyEl) keyEl.classList.remove(className);
+        }, 200);
+      }, i * interval);
+    });
+  }
+
+  // ============================================================
+  //  CHORD RECOGNITION
+  // ============================================================
+  let activeNotesSet = new Set();
+  const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const CHORD_PATTERNS = {
+    major:    { intervals: [0,4,7], label: 'Mayor', short: '' },
+    minor:    { intervals: [0,3,7], label: 'Menor', short: 'm' },
+    dim:      { intervals: [0,3,6], label: 'Disminuido', short: 'dim' },
+    aug:      { intervals: [0,4,8], label: 'Aumentado', short: 'aug' },
+    maj7:     { intervals: [0,4,7,11], label: 'Séptima mayor', short: 'maj7' },
+    '7':      { intervals: [0,4,7,10], label: 'Séptima dominante', short: '7' },
+    m7:       { intervals: [0,3,7,10], label: 'Séptima menor', short: 'm7' },
+    m7b5:     { intervals: [0,3,6,10], label: 'Semidisminuido', short: 'm7♭5' },
+    dim7:     { intervals: [0,3,6,9], label: 'Disminuido séptima', short: 'dim7' },
+    maj9:     { intervals: [0,4,7,11,14], label: 'Novena mayor', short: 'maj9' },
+    '9':      { intervals: [0,4,7,10,14], label: 'Novena dominante', short: '9' },
+    m9:       { intervals: [0,3,7,10,14], label: 'Novena menor', short: 'm9' },
+    maj11:    { intervals: [0,4,7,11,14,17], label: 'Onceava mayor', short: 'maj11' },
+    '11':     { intervals: [0,4,7,10,14,17], label: 'Onceava dominante', short: '11' },
+    m11:      { intervals: [0,3,7,10,14,17], label: 'Onceava menor', short: 'm11' },
+    maj13:    { intervals: [0,4,7,11,14,17,21], label: 'Treceava mayor', short: 'maj13' },
+    '13':     { intervals: [0,4,7,10,14,17,21], label: 'Treceava dominante', short: '13' },
+    m13:      { intervals: [0,3,7,10,14,17,21], label: 'Treceava menor', short: 'm13' },
+  };
+  function midiToNote(midi) { return NOTE_NAMES[midi % 12]; }
+  function midiToNoteWithOctave(midi) { return midiToNote(midi) + (Math.floor(midi/12)-1); }
+  function pitchClass(midi) { return midi % 12; }
+  function getActivePitchClasses() {
+    const classes = new Set();
+    activeNotesSet.forEach(midi => classes.add(pitchClass(midi)));
+    return [...classes].sort((a,b) => a-b);
+  }
+  function detectChord(pitchClasses) {
+    if (pitchClasses.length < 2) return null;
+    let bestMatch = null, bestScore = -1;
+    for (let root of pitchClasses) {
+      const intervals = pitchClasses.map(p => ((p - root) % 12 + 12) % 12).sort((a,b) => a-b);
+      for (let [key, pattern] of Object.entries(CHORD_PATTERNS)) {
+        const needed = pattern.intervals.slice();
+        let matchCount = 0;
+        for (let iv of needed) if (intervals.includes(iv)) matchCount++;
+        if (matchCount === needed.length) {
+          const score = needed.length * 100 + (key === 'major' ? 0 : 1);
+          if (score > bestScore) { bestScore = score; bestMatch = { root, key, intervals: needed }; }
+        } else if (matchCount >= 2 && matchCount < needed.length) {
+          const score = matchCount * 10 + (needed.length - matchCount) * 0.1;
+          if (score > bestScore) { bestScore = score; bestMatch = { root, key, intervals: needed, partial: true, matchCount }; }
+        }
+      }
+    }
+    if (bestMatch) {
+      const rootName = NOTE_NAMES[bestMatch.root];
+      const pattern = CHORD_PATTERNS[bestMatch.key];
+      let fullName = rootName + (pattern.short ? ' ' + pattern.short : '');
+      if (bestMatch.partial) fullName += ' (incompleto)';
+      return { root: bestMatch.root, rootName, key: bestMatch.key, quality: pattern.label, short: pattern.short,
+        fullName, intervals: bestMatch.intervals, partial: bestMatch.partial || false };
+    }
+    return null;
+  }
+  function updateChordDisplay() {
+    try {
+      const classes = getActivePitchClasses();
+      const chord = detectChord(classes);
+      const nameEl = document.getElementById('chordName');
+      const qualityEl = document.getElementById('chordQuality');
+      const notesListEl = document.getElementById('chordNotesList');
+      const intervalsEl = document.getElementById('chordIntervalsDisplay');
+      if (!chord) {
+        nameEl.textContent = '—';
+        qualityEl.textContent = 'Toca algunas notas';
+        notesListEl.textContent = '';
+        intervalsEl.innerHTML = '';
+        return;
+      }
+      nameEl.textContent = chord.fullName;
+      qualityEl.textContent = chord.quality + (chord.partial ? ' (incompleto)' : '');
+      const activeMidis = [...activeNotesSet];
+      const chordMidis = activeMidis.filter(midi => chord.intervals.includes(((midi % 12) - chord.root + 12) % 12));
+      notesListEl.textContent = chordMidis.map(m => midiToNoteWithOctave(m)).join(' ');
+      intervalsEl.innerHTML = '';
+      const intervalLabels = ['1', '3', '5', '7', '9', '11', '13'];
+      chord.intervals.forEach((iv, idx) => {
+        const span = document.createElement('span');
+        const note = midiToNote(chord.root + iv);
+        const label = intervalLabels[idx] || `+${iv}`;
+        let color = 'var(--text-1)';
+        if (iv === 0) color = 'var(--cyan)';
+        else if (iv === 4 || iv === 3 || iv === 10 || iv === 11) color = '#f7d44a';
+        else color = '#55e6a5';
+        span.textContent = `${label} (${note})`;
+        span.style.cssText = `color:${color}; background:var(--bg-2); padding:0 6px; border-radius:12px; font-size:0.7rem; border:1px solid var(--line);`;
+        intervalsEl.appendChild(span);
+      });
+
+      // Ya no llamamos a validateTarget aquí porque se maneja en tiempo real
+    } catch(e) { console.warn(e); }
+  }
+
+  // ============================================================
+  //  RETROILUMINACIÓN EN TIEMPO REAL (MEJORADA PARA ESCALAS)
+  // ============================================================
+  function updateRealTimeLightsAndFeedback() {
+    const fb = document.getElementById('feedback');
+    
+    // Limpiar todas las clases de estado (correct, wrong, target, target-dim) de TODAS las teclas
+    document.querySelectorAll('.key').forEach(el => {
+      el.classList.remove('correct', 'wrong', 'target', 'target-dim');
+    });
+    
+    if (!targetChord || targetNotesAll.length === 0) {
+      fb.textContent = 'Carga una escala o acorde para practicar';
+      fb.className = 'feedback info';
+      return;
+    }
+
+    const hand = handSelect.value;
+    let activeNotes = [];
+    if (hand === 'both') activeNotes = targetNotesAll;
+    else if (hand === 'right') activeNotes = targetRightNotes;
+    else if (hand === 'left') activeNotes = targetLeftNotes;
+
+    const targetSet = new Set(activeNotes);
+    const activeMidis = [...activeNotesSet];
+
+    // ===== MODO ESCALA ===== (validación secuencial)
+    if (isScaleMode) {
+      // Si hay más de una nota activa, mostrar advertencia y marcar las activas como wrong
+      if (activeMidis.length > 1) {
+        fb.textContent = '⚠️ Toca una nota a la vez para la escala';
+        fb.className = 'feedback warning';
+        activeMidis.forEach(midi => {
+          const keyEl = document.querySelector(`.key[data-midi="${midi}"]`);
+          if (keyEl) keyEl.classList.add('wrong');
+        });
+        // Restaurar target para las notas de la mano seleccionada que no han sido tocadas correctamente
+        targetSet.forEach(midi => {
+          if (!scaleProgress.has(midi) && !activeMidis.includes(midi)) {
+            const keyEl = document.querySelector(`.key[data-midi="${midi}"]`);
+            if (keyEl) keyEl.classList.add('target');
+          }
+        });
+        return;
+      }
+
+      // Una sola nota activa
+      if (activeMidis.length === 1) {
+        const midi = activeMidis[0];
+        const keyEl = document.querySelector(`.key[data-midi="${midi}"]`);
+        if (targetSet.has(midi)) {
+          // Nota correcta
+          if (!scaleProgress.has(midi)) {
+            scaleProgress.add(midi);
+          }
+          if (keyEl) keyEl.classList.add('correct');
+          const total = targetSet.size;
+          const done = scaleProgress.size;
+          if (done === total) {
+            fb.textContent = `✅ ¡Perfecto! Todas las ${total} notas correctas 👏`;
+            fb.className = 'feedback correct';
+            if (Date.now() - lastFeedbackTime > 3000) {
+              lastFeedbackTime = Date.now();
+              if (Tone.context.state !== 'running') Tone.start();
+              const successNotes = [...targetSet].slice(0, 5).map(m => midiToNoteName(m));
+              synth.triggerAttackRelease(successNotes, 0.3, Tone.now(), 0.6);
+            }
+          } else {
+            fb.textContent = `✅ ${done}/${total} notas correctas · Sigue así`;
+            fb.className = 'feedback waiting';
+          }
+        } else {
+          // Nota incorrecta
+          if (keyEl) keyEl.classList.add('wrong');
+          fb.textContent = `❌ Nota incorrecta · Solo las azules`;
+          fb.className = 'feedback incorrect';
+        }
+        // Restaurar target para notas de la mano seleccionada que faltan
+        targetSet.forEach(m => {
+          if (!scaleProgress.has(m) && !activeMidis.includes(m)) {
+            const el = document.querySelector(`.key[data-midi="${m}"]`);
+            if (el) el.classList.add('target');
+          }
+        });
+        return;
+      }
+
+      // No hay notas activas
+      const total = targetSet.size;
+      const done = scaleProgress.size;
+      if (done === total && total > 0) {
+        fb.textContent = `✅ ¡Perfecto! Todas las ${total} notas correctas 👏`;
+        fb.className = 'feedback correct';
+      } else {
+        fb.textContent = `🎯 Toca las notas azules (${done}/${total})`;
+        fb.className = 'feedback waiting';
+      }
+      // Restaurar target para todas las notas de la mano seleccionada que no se han tocado
+      targetSet.forEach(m => {
+        if (!scaleProgress.has(m)) {
+          const el = document.querySelector(`.key[data-midi="${m}"]`);
+          if (el) el.classList.add('target');
+        }
+      });
+      return;
+    }
+
+    // ===== MODO ACORDE ===== (validación simultánea)
+    let correctCount = 0;
+    let wrongCount = 0;
+    activeMidis.forEach(midi => {
+      const keyEl = document.querySelector(`.key[data-midi="${midi}"]`);
+      if (targetSet.has(midi)) {
+        if (keyEl) keyEl.classList.add('correct');
+        correctCount++;
+      } else {
+        if (keyEl) keyEl.classList.add('wrong');
+        wrongCount++;
+      }
+    });
+
+    // Mostrar target para notas del acorde que faltan
+    targetSet.forEach(midi => {
+      if (!activeMidis.includes(midi)) {
+        const el = document.querySelector(`.key[data-midi="${midi}"]`);
+        if (el) el.classList.add('target');
+      }
+    });
+
+    const totalTarget = targetSet.size;
+    const missingCount = totalTarget - correctCount;
+
+    if (correctCount === totalTarget && wrongCount === 0) {
+      fb.textContent = `✅ ¡Perfecto! Todas las ${totalTarget} notas correctas 👏`;
+      fb.className = 'feedback correct';
+    } else if (wrongCount > 0 && missingCount === 0) {
+      fb.textContent = `❌ Tienes ${wrongCount} nota(s) incorrecta(s) · Solo toca las notas azules`;
+      fb.className = 'feedback incorrect';
+    } else if (wrongCount > 0 && missingCount > 0) {
+      fb.textContent = `❌ ${wrongCount} incorrecta(s) · Te faltan ${missingCount} nota(s) de ${totalTarget}`;
+      fb.className = 'feedback incorrect';
+    } else if (wrongCount === 0 && missingCount > 0) {
+      fb.textContent = `⚠️ Te faltan ${missingCount} nota(s) de ${totalTarget}`;
+      fb.className = 'feedback waiting';
+    } else {
+      fb.textContent = `🎯 Toca las notas azules (${totalTarget} notas)`;
+      fb.className = 'feedback waiting';
+    }
+  }
+
+  // ============================================================
+  //  OBJETIVO (TARGET)
+  // ============================================================
+  function setTarget(rootPc, type, fullNotes = null, rightNotesTarget = [], leftNotesTarget = [], scaleMode = false) {
+    scaleProgress = new Set();
+    isScaleMode = scaleMode;
+
+    if (fullNotes) {
+      targetNotesAll = fullNotes;
+      targetRightNotes = rightNotesTarget;
+      targetLeftNotes = leftNotesTarget;
+      targetChord = { fullName: 'Escala completa', notes: fullNotes };
+      targetActive = true;
+      setTargetBtn.classList.add('active');
+      setTargetBtn.textContent = '🎯 Objetivo activo';
+      // No llamamos a updateTargetLights, directamente actualizamos con updateRealTime...
+      updateRealTimeLightsAndFeedback();
+      const fb = document.getElementById('feedback');
+      fb.textContent = `🎯 ${targetChord.fullName} · ${isScaleMode ? 'Toca una nota a la vez' : 'Toca todas las notas juntas'}`;
+      fb.className = 'feedback waiting';
+      updateInfo(`Objetivo: ${fullNotes.length} notas (${isScaleMode ? 'escala' : 'acorde'})`);
+      return;
+    }
+
+    const pattern = CHORD_PATTERNS[type];
+    if (!pattern) return;
+    const intervals = pattern.intervals;
+    const rootName = NOTE_NAMES[rootPc];
+    const fullName = rootName + (pattern.short ? ' ' + pattern.short : '');
+    const notes = intervals.map(iv => 60 + rootPc + iv);
+    targetNotesAll = notes;
+    targetRightNotes = notes;
+    targetLeftNotes = [];
+    targetChord = { root: rootPc, type, intervals, notes, fullName };
+    targetActive = true;
+    setTargetBtn.classList.add('active');
+    setTargetBtn.textContent = '🎯 Objetivo activo';
+    updateRealTimeLightsAndFeedback();
+    const fb = document.getElementById('feedback');
+    fb.textContent = `🎯 ${fullName} · ${isScaleMode ? 'Toca una nota a la vez' : 'Toca todas las notas juntas'}`;
+    fb.className = 'feedback waiting';
+    updateInfo(`Objetivo establecido: ${fullName} (${isScaleMode ? 'escala' : 'acorde'})`);
+  }
+
+  function clearTarget() {
+    targetChord = null;
+    targetNotesAll = [];
+    targetRightNotes = [];
+    targetLeftNotes = [];
+    targetActive = false;
+    isScaleMode = false;
+    scaleProgress = new Set();
+    setTargetBtn.classList.remove('active');
+    setTargetBtn.textContent = '🎯 Establecer objetivo';
+    document.querySelectorAll('.key').forEach(el => {
+      el.classList.remove('target', 'target-dim', 'correct', 'wrong');
+    });
+    document.getElementById('feedback').textContent = 'Carga una escala o acorde para practicar';
+    document.getElementById('feedback').className = 'feedback info';
+    updateInfo('Objetivo limpiado');
+  }
+
+  // ============================================================
+  //  TRY
+  // ============================================================
+  function tryChord() {
+    const root = parseInt(document.getElementById('chordRootSelect').value);
+    const type = document.getElementById('chordTypeSelect').value;
+    const pattern = CHORD_PATTERNS[type];
+    if (!pattern) return;
+    const intervals = pattern.intervals;
+    const notes = intervals.map(iv => 60 + root + iv);
+    const noteNames = notes.map(midi => midiToNoteName(midi));
+    const velocity = getVelocity();
+
+    if (Tone.context.state !== 'running') Tone.start();
+
+    killAllSounds();
+
+    playWithEffectAndLights(noteNames, notes, velocity);
+
+    clearTimeout(tryTimeout);
+    tryTimeout = setTimeout(() => {
+      killAllSounds();
+      document.querySelectorAll('.key.active').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.key.effect-light').forEach(el => el.classList.remove('effect-light'));
+      document.querySelectorAll('.key.apoyatura-light').forEach(el => el.classList.remove('apoyatura-light'));
+      tryBtn.classList.remove('active');
+      isTryActive = false;
+      
+      const fb = document.getElementById('feedback');
+      if (targetChord && targetNotesAll.length > 0) {
+        const targetName = targetChord.fullName || 'Escala';
+        fb.textContent = `🎯 Objetivo: ${targetName}`;
+        fb.className = 'feedback waiting';
+        // Restaurar luces
+        updateRealTimeLightsAndFeedback();
+      } else {
+        fb.textContent = 'Carga una escala o acorde para practicar';
+        fb.className = 'feedback info';
+      }
+    }, 1500);
+
+    const fb = document.getElementById('feedback');
+    const rootName = NOTE_NAMES[root];
+    const fullName = rootName + (pattern.short ? ' ' + pattern.short : '');
+    const trinoIntervalText = document.getElementById('trinoInterval').value;
+    fb.textContent = `🎵 TRY: ${fullName} (${currentDynamic}, ${currentEffect}${currentEffect === 'trino' ? ' '+trinoIntervalText+'ª' : ''})`;
+    fb.className = 'feedback try';
+    tryBtn.classList.add('active');
+    isTryActive = true;
+  }
+
+  // ============================================================
+  //  EFECTOS MUSICALES CON LUCES Y SÍMBOLOS
+  // ============================================================
+  function playWithEffectAndLights(noteNames, midiNotes, velocity) {
+    const now = Tone.now();
+    const direction = apoyaturaDirection.value;
+    const trinoIntervalValue = parseInt(document.getElementById('trinoInterval').value);
+    const bpm = parseInt(document.getElementById('tempoSlider').value);
+    const speedFactor = 60 / bpm;
+
+    switch(currentEffect) {
+      case 'none':
+        synth.triggerAttackRelease(noteNames, 0.8, now, velocity);
+        lightKeys(midiNotes, 0);
+        break;
+
+      case 'tremolo':
+        const tremoloReps = 3;
+        const tremoloInterval = 0.08 * speedFactor;
+        const totalSteps = noteNames.length * tremoloReps;
+        for (let i = 0; i < totalSteps; i++) {
+          const idx = i % noteNames.length;
+          const delay = i * tremoloInterval;
+          const note = noteNames[idx];
+          const midi = midiNotes[idx];
+          synth.triggerAttackRelease(note, 0.03, now + delay, velocity * 0.7);
+          setTimeout(() => {
+            const keyEl = document.querySelector(`.key[data-midi="${midi}"]`);
+            if (keyEl) keyEl.classList.add('effect-light');
+            setTimeout(() => {
+              if (keyEl) keyEl.classList.remove('effect-light');
+            }, tremoloInterval * 1000 * 0.8);
+          }, delay * 1000);
+        }
+        setTimeout(() => {
+          document.querySelectorAll('.key.effect-light').forEach(el => el.classList.remove('effect-light'));
+        }, totalSteps * tremoloInterval * 1000 + 200);
+        break;
+
+      case 'trino':
+        if (noteNames.length >= 2) {
+          const trinoPairs = [];
+          const numPairs = Math.min(noteNames.length, 8);
+          
+          for (let i = 0; i < numPairs; i++) {
+            const baseMidi = midiNotes[i % midiNotes.length];
+            const targetMidi = Math.min(baseMidi + trinoIntervalValue, 108);
+            const baseNote = midiToNoteName(baseMidi);
+            const targetNote = midiToNoteName(targetMidi);
+            trinoPairs.push({ base: baseNote, target: targetNote, baseMidi: baseMidi, targetMidi: targetMidi });
+          }
+          
+          const totalSteps = 16;
+          for (let i = 0; i < totalSteps; i++) {
+            const delay = i * 0.04;
+            const pairIndex = i % trinoPairs.length;
+            const pair = trinoPairs[pairIndex];
+            const note = i % 2 === 0 ? pair.base : pair.target;
+            const midi = i % 2 === 0 ? pair.baseMidi : pair.targetMidi;
+            synth.triggerAttackRelease(note, 0.03, now + delay, velocity * 0.6);
+            lightKeys([midi], delay * 1000);
+          }
+        } else {
+          const baseMidi = midiNotes[0];
+          const targetMidi = Math.min(baseMidi + trinoIntervalValue, 108);
+          const baseNote = midiToNoteName(baseMidi);
+          const targetNote = midiToNoteName(targetMidi);
+          for (let i = 0; i < 16; i++) {
+            const delay = i * 0.04;
+            const note = i % 2 === 0 ? baseNote : targetNote;
+            const midi = i % 2 === 0 ? baseMidi : targetMidi;
+            synth.triggerAttackRelease(note, 0.03, now + delay, velocity * 0.6);
+            lightKeys([midi], delay * 1000);
+          }
+        }
+        break;
+
+      case 'staccato':
+        noteNames.forEach((note, i) => {
+          const delay = i * 0.1;
+          synth.triggerAttackRelease(note, 0.08, now + delay, velocity);
+          lightKeys([midiNotes[i]], delay * 1000);
+        });
+        break;
+
+      case 'glissando':
+        if (noteNames.length >= 2) {
+          const first = noteNames[0];
+          const last = noteNames[noteNames.length - 1];
+          const startMidi = midiNotes[0];
+          const endMidi = midiNotes[midiNotes.length - 1];
+          const steps = 12;
+          const glissNotes = [];
+          for (let i = 0; i <= steps; i++) {
+            const midi = startMidi + (endMidi - startMidi) * (i / steps);
+            const freq = Tone.Frequency(midi, 'midi').toNote();
+            glissNotes.push(Math.round(midi));
+            synth.triggerAttackRelease(freq, 0.04, now + i * 0.05, velocity * 0.5);
+          }
+          lightKeysSequential(glissNotes, 50);
+        } else {
+          synth.triggerAttackRelease(noteNames, 0.8, now, velocity);
+          lightKeys(midiNotes, 0);
+        }
+        break;
+
+      case 'arpeggio':
+        noteNames.forEach((note, i) => {
+          const delay = i * 0.12;
+          synth.triggerAttackRelease(note, 0.3, now + delay, velocity);
+          lightKeys([midiNotes[i]], delay * 1000);
+        });
+        break;
+
+      case 'apoyatura':
+        if (noteNames.length > 0) {
+          const midiBase = midiNotes[0];
+          let apoyaturaMidi;
+          let directionLabel = '';
+          let directionSymbol = '';
+          
+          if (direction === 'asc') {
+            apoyaturaMidi = Math.min(midiBase + 1, 108);
+            directionLabel = 'Ascendente ♯';
+            directionSymbol = '♯';
+            lightKeys([apoyaturaMidi], 0, 'apoyatura-light');
+            synth.triggerAttackRelease(Tone.Frequency(apoyaturaMidi, 'midi').toNote(), 0.12, now, velocity * 0.6);
+            setTimeout(() => {
+              synth.triggerAttackRelease(noteNames, 0.7, now + 0.15, velocity);
+              lightKeys(midiNotes, 0);
+            }, 150);
+          } else {
+            apoyaturaMidi = Math.max(midiBase - 1, 21);
+            directionLabel = 'Descendente ♭';
+            directionSymbol = '♭';
+            lightKeys([apoyaturaMidi], 0, 'apoyatura-light');
+            synth.triggerAttackRelease(Tone.Frequency(apoyaturaMidi, 'midi').toNote(), 0.12, now, velocity * 0.6);
+            setTimeout(() => {
+              synth.triggerAttackRelease(noteNames, 0.7, now + 0.15, velocity);
+              lightKeys(midiNotes, 0);
+            }, 150);
+          }
+          
+          const fb = document.getElementById('feedback');
+          fb.textContent = `🎵 Apoyatura ${directionSymbol} ${directionLabel}`;
+          fb.className = 'feedback try';
+        } else {
+          synth.triggerAttackRelease(noteNames, 0.8, now, velocity);
+          lightKeys(midiNotes, 0);
+        }
+        break;
+
+      default:
+        synth.triggerAttackRelease(noteNames, 0.8, now, velocity);
+        lightKeys(midiNotes, 0);
+    }
+  }
+
+  // ============================================================
+  //  CONSTRUCTOR DE ACORDES
+  // ============================================================
+  function updateConstructionDisplay() {
+    try {
+      const root = parseInt(document.getElementById('chordRootSelect').value);
+      const type = document.getElementById('chordTypeSelect').value;
+      const pattern = CHORD_PATTERNS[type];
+      if (!pattern) return;
+      const intervals = pattern.intervals;
+      const container = document.getElementById('chordConstruction');
+      container.innerHTML = '';
+      const rootName = NOTE_NAMES[root];
+      const fullName = rootName + (pattern.short ? ' ' + pattern.short : '');
+      const title = document.createElement('span');
+      title.textContent = fullName;
+      title.style.cssText = 'font-weight:bold; color:var(--cyan); margin-right:12px;';
+      container.appendChild(title);
+      
+      const intervalLabels = ['1', '3', '5', '7', '9', '11', '13'];
+      intervals.forEach((iv, idx) => {
+        const note = midiToNote(root + iv);
+        const label = intervalLabels[idx] || `+${iv}`;
+        const span = document.createElement('span');
+        span.textContent = `${label}: ${note}`;
+        let color = 'var(--text-1)';
+        if (iv === 0) color = 'var(--cyan)';
+        else if (iv === 4 || iv === 3 || iv === 10 || iv === 11) color = '#f7d44a';
+        else color = '#55e6a5';
+        span.style.cssText = `color:${color}; background:var(--bg-2); padding:0 8px; border-radius:12px; border:1px solid var(--line); font-size:0.7rem;`;
+        container.appendChild(span);
+      });
+    } catch(e) { console.warn(e); }
+  }
+
+  document.getElementById('showChordBtn').addEventListener('click', updateConstructionDisplay);
+
+  setTargetBtn.addEventListener('click', ()=>{
+    const root = parseInt(document.getElementById('chordRootSelect').value);
+    const type = document.getElementById('chordTypeSelect').value;
+    setTarget(root, type, null, [], [], false);
+  });
+
+  document.getElementById('clearTargetBtn').addEventListener('click', clearTarget);
+  document.getElementById('tryBtn').addEventListener('click', tryChord);
+
+  // Cambio de mano
+  handSelect.addEventListener('change', () => {
+    if (targetActive) {
+      if (isScaleMode) {
+        scaleProgress = new Set();
+        // Al cambiar de mano, resetear progreso de escala
+      }
+      updateRealTimeLightsAndFeedback();
+    }
+  });
+
+  // ============================================================
+  //  EFECTOS Y DINÁMICAS - EVENTOS
+  // ============================================================
+  document.querySelectorAll('[data-dynamic]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-dynamic]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentDynamic = btn.dataset.dynamic;
+      if (!isTryActive) {
+        const fb = document.getElementById('feedback');
+        fb.textContent = `Dinámica: ${currentDynamic}`;
+        fb.className = 'feedback info';
+        setTimeout(() => {
+          if (targetChord && targetNotesAll.length > 0 && targetActive) {
+            fb.textContent = `🎯 Objetivo: ${targetChord.fullName || 'Escala'}`;
+            fb.className = 'feedback waiting';
+            updateRealTimeLightsAndFeedback();
+          } else {
+            fb.textContent = 'Carga una escala o acorde para practicar';
+            fb.className = 'feedback info';
+          }
+        }, 1000);
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-effect]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-effect]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentEffect = btn.dataset.effect;
+      if (!isTryActive) {
+        const fb = document.getElementById('feedback');
+        fb.textContent = `Efecto: ${currentEffect}`;
+        fb.className = 'feedback info';
+        setTimeout(() => {
+          if (targetChord && targetNotesAll.length > 0 && targetActive) {
+            fb.textContent = `🎯 Objetivo: ${targetChord.fullName || 'Escala'}`;
+            fb.className = 'feedback waiting';
+            updateRealTimeLightsAndFeedback();
+          } else {
+            fb.textContent = 'Carga una escala o acorde para practicar';
+            fb.className = 'feedback info';
+          }
+        }, 1000);
+      }
+    });
+  });
+
+  // ============================================================
+  //  CATÁLOGO DE EJERCICIOS
+  // ============================================================
+  const NOTAS = ['Do','Do#','Re','Re#','Mi','Fa','Fa#','Sol','Sol#','La','La#','Si'];
+  const CATALOGO = {};
+
+  function generarEscala(root, intervals, duracion=0.5, gap=0.1) {
+    const rNotes = [];
+    const lNotes = [];
+    let t = 0;
+    intervals.forEach(iv => {
+      rNotes.push({pitch: root + iv, time: t, duration: duracion, velocity: 0.8});
+      t += duracion + gap;
+    });
+    t = 0;
+    intervals.forEach(iv => {
+      lNotes.push({pitch: root - 24 + iv, time: t, duration: duracion + 0.2, velocity: 0.7});
+      t += duracion + gap + 0.1;
+    });
+    return { r: rNotes, l: lNotes };
+  }
+
+  // Escalas mayores
+  CATALOGO['Escalas mayores'] = {};
+  for (let r=0; r<12; r++) {
+    const intervals = [0,2,4,5,7,9,11,12];
+    const root = 60 + r;
+    CATALOGO['Escalas mayores'][NOTAS[r] + ' mayor'] = () => generarEscala(root, intervals, 0.5, 0.1);
+  }
+
+  // Escalas menores
+  CATALOGO['Escalas menores'] = {};
+  for (let r=0; r<12; r++) {
+    ['natural', 'armónica', 'melódica'].forEach(tipo => {
+      let intervals;
+      if (tipo === 'natural') intervals = [0,2,3,5,7,8,10,12];
+      else if (tipo === 'armónica') intervals = [0,2,3,5,7,8,11,12];
+      else intervals = [0,2,3,5,7,9,11,12];
+      const root = 60 + r;
+      CATALOGO['Escalas menores'][NOTAS[r] + ' menor ' + tipo] = () => generarEscala(root, intervals, 0.5, 0.1);
+    });
+  }
+
+  // Modos griegos
+  CATALOGO['Modos griegos'] = {};
+  const MODOS = {
+    'Jónico (Mayor)': [0,2,4,5,7,9,11,12],
+    'Dórico': [0,2,3,5,7,9,10,12],
+    'Frigio': [0,1,3,5,7,8,10,12],
+    'Lidio': [0,2,4,6,7,9,11,12],
+    'Mixolidio': [0,2,4,5,7,9,10,12],
+    'Eólico (menor natural)': [0,2,3,5,7,8,10,12],
+    'Locrio': [0,1,3,5,6,8,10,12]
+  };
+  for (let r=0; r<12; r++) {
+    Object.entries(MODOS).forEach(([nombre, intervals]) => {
+      const root = 60 + r;
+      CATALOGO['Modos griegos'][NOTAS[r] + ' ' + nombre] = () => generarEscala(root, intervals, 0.5, 0.1);
+    });
+  }
+
+  // Arpegios
+  CATALOGO['Arpegios'] = {};
+  const ACORDES = {
+    'Mayor': [0,4,7,12],
+    'Menor': [0,3,7,12],
+    'Disminuido': [0,3,6,12],
+    'Aumentado': [0,4,8,12],
+    'Séptima dominante': [0,4,7,10],
+    'Séptima mayor': [0,4,7,11],
+    'Séptima menor': [0,3,7,10]
+  };
+  for (let r=0; r<12; r++) {
+    Object.entries(ACORDES).forEach(([nombre, intervals]) => {
+      const root = 60 + r;
+      CATALOGO['Arpegios'][NOTAS[r] + ' ' + nombre] = () => {
+        const rNotes = [];
+        const lNotes = [];
+        let t = 0;
+        intervals.forEach(iv => {
+          rNotes.push({pitch: root + iv, time: t, duration: 0.6, velocity: 0.85});
+          t += 0.75;
+        });
+        t = 0;
+        intervals.slice(0, 3).forEach(iv => {
+          lNotes.push({pitch: root - 24 + iv, time: t, duration: 0.8, velocity: 0.8});
+          t += 1.0;
+        });
+        return { r: rNotes, l: lNotes };
+      };
+    });
+  }
+
+  // Acordes en bloque
+  CATALOGO['Acordes (bloque)'] = {};
+  for (let r=0; r<12; r++) {
+    Object.entries(ACORDES).forEach(([nombre, intervals]) => {
+      const root = 60 + r;
+      CATALOGO['Acordes (bloque)'][NOTAS[r] + ' ' + nombre] = () => {
+        const rNotes = intervals.map(iv => ({pitch: root + iv, time: 0, duration: 1.2, velocity: 0.8}));
+        const lNotes = intervals.slice(0, 3).map(iv => ({pitch: root - 24 + iv, time: 0, duration: 1.2, velocity: 0.8}));
+        return { r: rNotes, l: lNotes };
+      };
+    });
+  }
+
+  // DINÁMICAS
+  CATALOGO['Dinámicas'] = {};
+  const dynIntervals = [0,2,4,5,7,9,11,12];
+  const dynMap = {
+    'pp (pianissimo)': 0.15,
+    'p (piano)': 0.35,
+    'mf (mezzoforte)': 0.55,
+    'f (forte)': 0.75,
+    'ff (fortissimo)': 0.95
+  };
+  for (let [nombre, vel] of Object.entries(dynMap)) {
+    CATALOGO['Dinámicas'][nombre] = () => {
+      const rNotes = []; let t=0;
+      dynIntervals.forEach(iv => { rNotes.push({pitch:60+iv,time:t,duration:0.5,velocity:vel}); t+=0.6; });
+      const lNotes = []; t=0;
+      dynIntervals.slice(0,4).forEach(iv => { lNotes.push({pitch:36+iv,time:t,duration:0.8,velocity:Math.max(0.1, vel-0.15)}); t+=0.9; });
+      return { r: rNotes, l: lNotes };
+    };
+  }
+
+  // Figuras rítmicas
+  CATALOGO['Figuras rítmicas'] = {
+    'Redondas': () => {
+      const rNotes = []; let t=0; for(let i=0;i<4;i++){ rNotes.push({pitch:60,time:t,duration:1.8,velocity:0.8}); t+=2; }
+      const lNotes = []; t=0; for(let i=0;i<4;i++){ lNotes.push({pitch:48,time:t,duration:1.8,velocity:0.7}); t+=2; }
+      return { r: rNotes, l: lNotes };
+    },
+    'Blancas': () => {
+      const rNotes = []; let t=0; for(let i=0;i<8;i++){ rNotes.push({pitch:60,time:t,duration:0.9,velocity:0.8}); t+=1; }
+      const lNotes = []; t=0; for(let i=0;i<8;i++){ lNotes.push({pitch:48,time:t,duration:0.9,velocity:0.7}); t+=1; }
+      return { r: rNotes, l: lNotes };
+    },
+    'Negras': () => {
+      const rNotes = []; let t=0; for(let i=0;i<16;i++){ rNotes.push({pitch:60,time:t,duration:0.45,velocity:0.8}); t+=0.5; }
+      const lNotes = []; t=0; for(let i=0;i<16;i++){ lNotes.push({pitch:48,time:t,duration:0.45,velocity:0.7}); t+=0.5; }
+      return { r: rNotes, l: lNotes };
+    },
+    'Corcheas': () => {
+      const rNotes = []; let t=0; for(let i=0;i<32;i++){ rNotes.push({pitch:60,time:t,duration:0.2,velocity:0.8}); t+=0.25; }
+      const lNotes = []; t=0; for(let i=0;i<32;i++){ lNotes.push({pitch:48,time:t,duration:0.2,velocity:0.7}); t+=0.25; }
+      return { r: rNotes, l: lNotes };
+    }
+  };
+
+  // Trémolo (ejercicios)
+  CATALOGO['Trémolo'] = {
+    'Do-Mi rápido': () => {
+      const rNotes = []; let t=0; for(let i=0;i<20;i++){ rNotes.push({pitch: i%2===0?60:64, time:t, duration:0.07, velocity:0.7}); t+=0.08; }
+      const lNotes = []; t=0; for(let i=0;i<16;i++){ lNotes.push({pitch: i%2===0?48:52, time:t, duration:0.1, velocity:0.6}); t+=0.12; }
+      return { r: rNotes, l: lNotes };
+    },
+    'Sol-Si rápido': () => {
+      const rNotes = []; let t=0; for(let i=0;i<20;i++){ rNotes.push({pitch: i%2===0?67:71, time:t, duration:0.07, velocity:0.7}); t+=0.08; }
+      const lNotes = []; t=0; for(let i=0;i<16;i++){ lNotes.push({pitch: i%2===0?55:59, time:t, duration:0.1, velocity:0.6}); t+=0.12; }
+      return { r: rNotes, l: lNotes };
+    }
+  };
+
+  // Cromática
+  CATALOGO['Cromática'] = {
+    'Ascendente 2 octavas': () => {
+      const intervals = Array.from({length:25},(_,i)=>i);
+      const rNotes = []; let t=0;
+      intervals.forEach(iv => { rNotes.push({pitch:60+iv,time:t,duration:0.2,velocity:0.7}); t+=0.23; });
+      const lNotes = []; t=0;
+      intervals.slice(0,13).forEach(iv => { lNotes.push({pitch:36+iv,time:t,duration:0.3,velocity:0.6}); t+=0.33; });
+      return { r: rNotes, l: lNotes };
+    }
+  };
+
+  // Progresiones
+  CATALOGO['Progresiones'] = {
+    'I-IV-V-I (Do mayor)': () => {
+      const t=[0,1.4,2.8,4.2];
+      const r = [
+        ...ACORDES['Mayor'].map(iv => ({pitch:60+iv, time:t[0], duration:1.3, velocity:0.8})),
+        ...ACORDES['Mayor'].map(iv => ({pitch:60+5+iv, time:t[1], duration:1.3, velocity:0.8})),
+        ...ACORDES['Mayor'].map(iv => ({pitch:60+7+iv, time:t[2], duration:1.3, velocity:0.8})),
+        ...ACORDES['Mayor'].map(iv => ({pitch:60+iv, time:t[3], duration:1.3, velocity:0.8}))
+      ];
+      const l = [
+        ...ACORDES['Mayor'].slice(0,3).map(iv => ({pitch:36+iv, time:t[0], duration:1.3, velocity:0.7})),
+        ...ACORDES['Mayor'].slice(0,3).map(iv => ({pitch:36+5+iv, time:t[1], duration:1.3, velocity:0.7})),
+        ...ACORDES['Mayor'].slice(0,3).map(iv => ({pitch:36+7+iv, time:t[2], duration:1.3, velocity:0.7})),
+        ...ACORDES['Mayor'].slice(0,3).map(iv => ({pitch:36+iv, time:t[3], duration:1.3, velocity:0.7}))
+      ];
+      return { r, l };
+    },
+    'I-vi-IV-V (pop)': () => {
+      const t=[0,1.4,2.8,4.2];
+      const r = [
+        ...ACORDES['Mayor'].map(iv => ({pitch:60+iv, time:t[0], duration:1.3, velocity:0.8})),
+        ...ACORDES['Menor'].map(iv => ({pitch:60+9+iv, time:t[1], duration:1.3, velocity:0.8})),
+        ...ACORDES['Mayor'].map(iv => ({pitch:60+5+iv, time:t[2], duration:1.3, velocity:0.8})),
+        ...ACORDES['Mayor'].map(iv => ({pitch:60+7+iv, time:t[3], duration:1.3, velocity:0.8}))
+      ];
+      const l = [
+        ...ACORDES['Mayor'].slice(0,3).map(iv => ({pitch:36+iv, time:t[0], duration:1.3, velocity:0.7})),
+        ...ACORDES['Menor'].slice(0,3).map(iv => ({pitch:36+9+iv, time:t[1], duration:1.3, velocity:0.7})),
+        ...ACORDES['Mayor'].slice(0,3).map(iv => ({pitch:36+5+iv, time:t[2], duration:1.3, velocity:0.7})),
+        ...ACORDES['Mayor'].slice(0,3).map(iv => ({pitch:36+7+iv, time:t[3], duration:1.3, velocity:0.7}))
+      ];
+      return { r, l };
+    }
+  };
+
+  // Piezas
+  CATALOGO['Piezas'] = {
+    'Oda a la Alegría (Beethoven)': () => {
+      const seq = [64,64,65,67,67,65,64,62,60,60,62,64,64,62,62,
+                   64,64,65,67,67,65,64,62,60,60,62,64,62,60,60];
+      const r = []; let t=0;
+      seq.forEach(p => { r.push({pitch:p,time:t,duration:0.45,velocity:0.8}); t+=0.5; });
+      const l = []; t=0;
+      seq.slice(0,15).forEach(p => { l.push({pitch:p-24,time:t,duration:0.45,velocity:0.6}); t+=0.5; });
+      return { r, l };
+    }
+  };
+
+  // ============================================================
+  //  CARGA DE EJERCICIOS
+  // ============================================================
+  function poblarCategorias() {
+    categorySelect.innerHTML = Object.keys(CATALOGO).map(c => `<option>${c}</option>`).join('');
+    poblarItems();
+  }
+  function poblarItems() {
+    const cat = categorySelect.value;
+    itemSelect.innerHTML = Object.keys(CATALOGO[cat]).map(i => `<option>${i}</option>`).join('');
+  }
+  categorySelect.addEventListener('change', poblarItems);
+
+  function loadFromCatalogo() {
+    const cat = categorySelect.value, item = itemSelect.value;
+    const gen = CATALOGO[cat] && CATALOGO[cat][item];
+    if (!gen) return;
+    killAllSounds();
+    scaleProgress = new Set();
+    const { r, l } = gen();
+    rightNotes = r; leftNotes = l || [];
+    totalDuration = Math.max(
+      rightNotes.reduce((m,n) => Math.max(m, n.time+n.duration), 0),
+      leftNotes.reduce((m,n) => Math.max(m, n.time+n.duration), 0), 1
+    );
+    stopPlayback();
+    updateInfo(`${cat} · ${item} · ${rightNotes.length+leftNotes.length} notas · ${totalDuration.toFixed(2)}s`);
+
+    const isScaleCat = (cat === 'Escalas mayores' || cat === 'Escalas menores' || cat === 'Modos griegos');
+
+    if (isScaleCat) {
+      const allNotes = [...rightNotes, ...leftNotes];
+      const uniqueAll = [...new Set(allNotes.map(n => n.pitch))].sort((a,b) => a-b);
+      const rightUnique = [...new Set(rightNotes.map(n => n.pitch))].sort((a,b) => a-b);
+      const leftUnique = [...new Set(leftNotes.map(n => n.pitch))].sort((a,b) => a-b);
+      setTarget(0, 'major', uniqueAll, rightUnique, leftUnique, true);
+      const fb = document.getElementById('feedback');
+      fb.textContent = `🎯 ${item}: Toca las notas una por una (${uniqueAll.length} notas)`;
+      fb.className = 'feedback waiting';
+    } else if (cat === 'Arpegios' || cat === 'Acordes (bloque)') {
+      let rootPc = 0, type = 'major';
+      for (let i=0; i<NOTAS.length; i++) {
+        if (item.startsWith(NOTAS[i])) {
+          rootPc = i;
+          const resto = item.slice(NOTAS[i].length).trim();
+          const map = {
+            'Mayor': 'major',
+            'Menor': 'minor',
+            'Disminuido': 'dim',
+            'Aumentado': 'aug',
+            'Séptima dominante': '7',
+            'Séptima mayor': 'maj7',
+            'Séptima menor': 'm7'
+          };
+          for (let [nombre, clave] of Object.entries(map)) {
+            if (resto.includes(nombre)) {
+              type = clave;
+              break;
+            }
+          }
+          break;
+        }
+      }
+      setTarget(rootPc, type, null, [], [], false);
+    } else {
+      clearTarget();
+    }
+  }
+  loadExerciseBtn.addEventListener('click', loadFromCatalogo);
+
+  // ============================================================
+  //  TECLADO Y NOTAS
+  // ============================================================
+  function noteOnUI(midi, keyEl) {
+    try { 
+      const noteName = midiToNoteName(midi);
+      synth.triggerAttack(noteName, Tone.now(), getVelocity());
+    } catch(e) {}
+    keyEl.classList.add('active');
+    activeNotesSet.add(midi);
+    updateChordDisplay();
+    updateRealTimeLightsAndFeedback();
+    if (recording) {
+      activePressStarts.set(midi, (performance.now()-recordStartMs)/1000);
+    }
+  }
+  function noteOffUI(midi, keyEl) {
+    try { 
+      const noteName = midiToNoteName(midi);
+      synth.triggerRelease(noteName, Tone.now());
+    } catch(e) {}
+    keyEl.classList.remove('active');
+    activeNotesSet.delete(midi);
+    updateChordDisplay();
+    updateRealTimeLightsAndFeedback();
+    if (recording && activePressStarts.has(midi)) {
+      const start = activePressStarts.get(midi);
+      const end = (performance.now()-recordStartMs)/1000;
+      const dur = Math.max(0.08, end-start);
+      liveNotes.push({ pitch: midi, time: start, duration: dur, velocity: 0.8, hand: midi>=60?'right':'left' });
+      activePressStarts.delete(midi);
+    }
+    clearTimeout(window.tempTimeout);
+    window.tempTimeout = setTimeout(()=>{}, 200);
+  }
+
+  function buildPiano() {
+    pianoEl.innerHTML = '';
+    for (let midi=21; midi<=108; midi++) {
+      const relOffset = ((midi-24)%12+12)%12;
+      const isBlack = ![0,2,4,5,7,9,11].includes(relOffset);
+      const key = document.createElement('div');
+      key.className = `key ${isBlack ? 'key-black' : 'key-white'}`;
+      key.dataset.midi = midi;
+      if (!isBlack && relOffset === 0) {
+        const label = document.createElement('span');
+        label.className = 'key-label';
+        label.textContent = midiToNoteName(midi);
+        key.appendChild(label);
+      }
+      pianoEl.appendChild(key);
+    }
+  }
+
+  pianoEl.addEventListener('mousedown', e => {
+    const key = e.target.closest('.key');
+    if (!key) return;
+    const midi = parseInt(key.dataset.midi);
+    if (isNaN(midi)) return;
+    if (Tone.context.state !== 'running') Tone.start().then(() => noteOnUI(midi, key));
+    else noteOnUI(midi, key);
+  });
+  pianoEl.addEventListener('mouseup', e => {
+    const key = e.target.closest('.key');
+    if (!key) return;
+    const midi = parseInt(key.dataset.midi);
+    if (isNaN(midi)) return;
+    noteOffUI(midi, key);
+  });
+  pianoEl.addEventListener('mouseleave', () => {
+    document.querySelectorAll('.key.active').forEach(el => {
+      const midi = parseInt(el.dataset.midi);
+      if (!isNaN(midi)) noteOffUI(midi, el);
+    });
+  });
+
+  // ============================================================
+  //  REPRODUCCIÓN
+  // ============================================================
+  function stopPlayback() {
+    if (Tone.Transport.state !== 'stopped') Tone.Transport.stop();
+    Tone.Transport.cancel();
+    isPlaying = false; isPaused = false; scheduled = false;
+    killAllSounds();
+    updateInfo('Detenido');
+  }
+  function clearAllActiveNotes() {
+    activeTimeouts.forEach(tid => clearTimeout(tid));
+    activeTimeouts = [];
+    document.querySelectorAll('.key.active').forEach(el => el.classList.remove('active'));
+  }
+  function scheduleNotes() {
+    Tone.Transport.cancel();
+    clearAllActiveNotes();
+    const allNotes = [...rightNotes, ...leftNotes];
+    if (allNotes.length === 0) { updateInfo('No hay notas'); return; }
+    allNotes.forEach(note => {
+      Tone.Transport.schedule(time => {
+        if (synth) synth.triggerAttackRelease(midiToNoteName(note.pitch), note.duration, time, note.velocity||0.8);
+        const keyEl = document.querySelector(`.key[data-midi="${note.pitch}"]`);
+        if (keyEl) {
+          keyEl.classList.add('active');
+          const tid = setTimeout(() => keyEl.classList.remove('active'), note.duration*1000);
+          activeTimeouts.push(tid);
+        }
+      }, note.time);
+    });
+    Tone.Transport.schedule(() => {
+      if (loopCheck.checked) {
+        Tone.Transport.stop();
+        setTimeout(() => { Tone.Transport.position = 0; scheduleNotes(); Tone.Transport.start();
+          isPlaying = true; isPaused = false; updateInfo('Loop activo'); }, 30);
+      } else {
+        Tone.Transport.stop(); isPlaying = false; isPaused = false;
+        updateInfo('Fin'); killAllSounds();
+      }
+    }, totalDuration + 0.1);
+    scheduled = true;
+  }
+  function startPlayback() {
+    if (Tone.context.state !== 'running') Tone.start().then(_startPlayback);
+    else _startPlayback();
+  }
+  function _startPlayback() {
+    if (isPlaying && !isPaused) return;
+    if (rightNotes.length + leftNotes.length === 0) { updateInfo('Cargá un ejercicio'); return; }
+    if (isPaused) { Tone.Transport.start(); isPaused = false; isPlaying = true; updateInfo('▶ Reproduciendo'); return; }
+    if (!scheduled || Tone.Transport.position === 0) { Tone.Transport.position = 0; scheduleNotes(); }
+    Tone.Transport.start(); isPlaying = true; isPaused = false; updateInfo('▶ Reproduciendo');
+  }
+  function pausePlayback() {
+    if (!isPlaying || isPaused) return;
+    Tone.Transport.pause(); isPaused = true; updateInfo('⏸ Pausado');
+  }
+
+  playBtn.addEventListener('click', () => {
+    killAllSounds();
+    if (targetChord && targetNotesAll.length > 0 && targetNotesAll.length <= 12) {
+      playTargetChord();
+    } else if (targetChord && targetNotesAll.length > 12) {
+      if (Tone.context.state !== 'running') Tone.start();
+      let t = Tone.now();
+      targetNotesAll.forEach((midi, i) => {
+        synth.triggerAttackRelease(midiToNoteName(midi), 0.3, t + i * 0.2, getVelocity());
+      });
+      document.querySelectorAll('.key.active').forEach(el => el.classList.remove('active'));
+      targetNotesAll.forEach(midi => {
+        const keyEl = document.querySelector(`.key[data-midi="${midi}"]`);
+        if (keyEl) keyEl.classList.add('active');
+      });
+      setTimeout(() => {
+        document.querySelectorAll('.key.active').forEach(el => el.classList.remove('active'));
+      }, 1500);
+    } else {
+      startPlayback();
+    }
+  });
+  pauseBtn.addEventListener('click', pausePlayback);
+  stopBtn.addEventListener('click', () => { stopPlayback(); });
+  tempoSlider.addEventListener('input', () => {
+    const bpm = parseInt(tempoSlider.value);
+    tempoDisplay.textContent = bpm;
+    Tone.Transport.bpm.value = bpm;
+  });
+
+  function playTargetChord() {
+    if (!targetChord || targetNotesAll.length === 0) return;
+    if (Tone.context.state !== 'running') Tone.start();
+    const notes = targetNotesAll.map(midi => midiToNoteName(midi));
+    playWithEffectAndLights(notes, targetNotesAll, getVelocity());
+  }
+
+  // ============================================================
+  //  MIDI
+  // ============================================================
+  midiConnectBtn.addEventListener('click', async () => {
+    if (!navigator.requestMIDIAccess) { midiStatus.textContent = 'SIN SOPORTE'; return; }
+    try {
+      const access = await navigator.requestMIDIAccess();
+      const inputs = [...access.inputs.values()];
+      if (inputs.length === 0) { midiStatus.textContent = 'SIN DISPOSITIVOS'; return; }
+      inputs.forEach(inp => { inp.onmidimessage = onMidiMessage; });
+      midiStatus.textContent = inputs[0].name.toUpperCase();
+      midiStatus.className = 'on';
+    } catch(err) { midiStatus.textContent = 'ERROR'; }
+  });
+  function onMidiMessage(msg) {
+    const data = msg.data;
+    if (data.length < 2) return;
+    const cmd = data[0] & 0xf0, note = data[1], vel = data.length > 2 ? data[2] : 0;
+    const keyEl = document.querySelector(`.key[data-midi="${note}"]`);
+    if (cmd === 0x90 && vel > 0) {
+      if (Tone.context.state !== 'running') Tone.start();
+      if (keyEl) noteOnUI(note, keyEl);
+    } else if (cmd === 0x80 || (cmd === 0x90 && vel === 0)) {
+      if (keyEl) noteOffUI(note, keyEl);
+    }
+  }
+
+  // ============================================================
+  //  GRABACIÓN
+  // ============================================================
+  recordBtn.addEventListener('click', () => {
+    recording = !recording;
+    if (recording) {
+      recordStartMs = performance.now();
+      updateInfo('Grabando...');
+    } else {
+      updateInfo('Grabación detenida, ' + liveNotes.length + ' notas');
+    }
+  });
+  clearRecordBtn.addEventListener('click', ()=>{ liveNotes = []; activePressStarts.clear(); updateInfo('Borrado'); });
+
+  // ============================================================
+  //  INICIALIZACIÓN
+  // ============================================================
+  buildPiano();
+  poblarCategorias();
+  updateConstructionDisplay();
+  updateChordDisplay();
+  updateInfo('Listo — elige un ejercicio y practica');
+  setTimeout(loadFromCatalogo, 100);
+
+  console.log('SENSITIVE PIANO CHORD CONSTRUCTOR - MEJORADO PARA ESCALAS');
+</script>
+</body>
+</html>
