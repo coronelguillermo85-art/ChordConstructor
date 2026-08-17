@@ -85,3 +85,6 @@ Aplicación web interactiva todo-en-uno para aprender **piano**, **armonía** y 
 git clone https://github.com/tu-usuario/sensitive-piano-chord-constructor.git
 cd sensitive-piano-chord-constructor
 # Abre index.html en tu navegador
+# O ingresar acá: https://chord-constructor.vercel.app/
+
+
